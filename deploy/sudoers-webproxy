@@ -1,0 +1,2 @@
+# The only privileged entry point of webproxy (PLAN.md section 3).
+webproxy ALL=(root) NOPASSWD: /usr/local/sbin/wppctl

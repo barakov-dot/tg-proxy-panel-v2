@@ -1,0 +1,39 @@
+# Generated for webproxy; values come from /etc/webproxy/caddy.env.
+{
+	email {$ACME_EMAIL}
+	admin off
+	servers {
+		protocols h1 h2
+		# read_body must stay well above the relay long_poll (25s).
+		timeouts {
+			read_header 10s
+			read_body 60s
+		}
+	}
+}
+
+{$WPP_DOMAIN} {
+	encode zstd gzip
+	header {
+		-Via
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+	# No access log: bridge URLs and bearer tokens must never be logged.
+	handle /{$WPP_PANEL_PATH}/* {
+		reverse_proxy 127.0.0.1:8090
+	}
+	handle {
+		reverse_proxy 127.0.0.1:8080 {
+			transport http {
+				response_header_timeout 40s
+			}
+		}
+	}
+	handle_errors {
+		header {
+			Cache-Control "no-store"
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		}
+		respond "{http.error.status_code} {http.error.status_text}" {http.error.status_code}
+	}
+}

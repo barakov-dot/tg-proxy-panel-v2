@@ -1,0 +1,16 @@
+[Unit]
+Description=WEB Proxy: nftables table inet wpp (slot ports, counters)
+# A distribution nftables start/reload flushes the whole ruleset; re-apply ours.
+After=nftables.service
+PartOf=nftables.service
+Before=wpp-relay.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/usr/local/sbin/wppctl sync
+ExecReload=/usr/local/sbin/wppctl sync
+ExecStop=-/usr/sbin/nft delete table inet wpp
+
+[Install]
+WantedBy=multi-user.target

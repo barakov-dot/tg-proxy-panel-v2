@@ -1,0 +1,45 @@
+[Unit]
+Description=WEB Proxy: tproxy-server relay
+After=network-online.target wpp-firewall.service
+Wants=network-online.target wpp-firewall.service
+# Wants, not Requires: an nftables restart re-applies the table through
+# wpp-firewall (PartOf=nftables.service) without restarting this service.
+
+[Service]
+Type=simple
+User=webproxy
+Group=webproxy
+ExecStart=/opt/webproxy/bin/tproxy-server -config /etc/webproxy/relay.json
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=20s
+LimitNOFILE=1048576
+NoNewPrivileges=true
+CapabilityBoundingSet=
+PrivateDevices=true
+PrivateTmp=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHome=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=invisible
+ProcSubset=pid
+ProtectSystem=strict
+ReadOnlyPaths=/etc/webproxy /var/lib/webproxy/site
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+IPAddressDeny=any
+IPAddressAllow=localhost
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
