@@ -212,13 +212,14 @@ def _query_db(path):
     return ports, blocked, shards
 
 
-def read_db(path=DB_PATH):
+def read_db(path=None):
     """Reads the database as its owner.
 
     Opening a WAL database as root could create root-owned -wal/-shm files that
     the webproxy services then cannot write, so the query runs in a child
     process that has dropped to the owner of the database file.
     """
+    path = path or DB_PATH
     owner = os.lstat(path)
     if not stat.S_ISREG(owner.st_mode):
         raise CtlError("database is not a regular file")
