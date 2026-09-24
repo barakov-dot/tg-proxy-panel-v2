@@ -108,14 +108,15 @@ PLAN.md и docs/.
 - **Завершено:** подготовка и проверка допущений (docs/FINDINGS.md, tools/verify/). Код ещё не писался.
 - **Следующий шаг:** M1 — ядро (`db`, `links`, `pool`, `system`, `ctl`, `users`, шаблон шарда,
   nft-таблица, тесты).
-- **Ключевые уточнения из FINDINGS для M1:** health relay только через `/healthz`, `/readyz` не
+- **Ключевые уточнения из FINDINGS для M1:** `nft-ss.sh`, `mtproxy-shard.sh`, `relay-check.sh` на VPS — PASS; health relay только через `/healthz`, `/readyz` не
   вызывать; health шарда = unit active + `GET /stats` на `19000+N`; `wppctl` получает подкоманды
   `counters` и `sync`; у каждого профиля свои `new_streams_per_minute`/`new_streams_burst`;
   `profiles.json` с правами 0600 без `LoadCredential`; sizing учитывает `max_pending_items_global`;
   шарды запускаются с `-M 0 -p <19000+N> --http-stats` (замер RSS: 8,2 МиБ против 15,1 МиБ у `-M 1`).
-  `relay-check.sh` на VPS — PASS.
 - **Открытые вопросы:**
-  - `nft-ss.sh` ещё не запускался (nft, `ss -K`); повторный запуск `mtproxy-shard.sh` после
-    добавления `--http-stats`; позже `nft-ss.sh` на Ubuntu 22.04 (nft 1.0.2) и Debian 12 (1.0.6);
+  - `nft-ss.sh` на Ubuntu 22.04 (nft 1.0.2) и Debian 12 (1.0.6) — в M5;
   - поведение реального клиента при выключенном доступе (M1, `client-reconnect-watch.sh`);
-  - значение по умолчанию `max_sessions` на пользователя — предложено 4 (FINDINGS п. 4).
+  - `reconnect_grace` = 60 с при `max_sessions = 1` — проверить с реальными клиентами в M1 (FINDINGS п. 4).
+- **Решено владельцем (2026-09-24):** одна ссылка = одно устройство (`max_sessions = 1` на профиль);
+  у человека несколько устройств, лимит устройств на человека (по умолчанию 1); срок и трафик — на
+  человека; устройства добавляют бот и панель. PLAN.md обновлён (таблица `devices`).
