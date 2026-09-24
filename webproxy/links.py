@@ -8,15 +8,15 @@ import hmac
 import re
 import urllib.parse
 
-_SECRET_RE = re.compile(r"^[0-9a-f]{32}$")
-_SEGMENT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+_SECRET_RE = re.compile(r"[0-9a-f]{32}")
+_SEGMENT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]*")
 MAX_BASE_PATH = 128
 MARKER = b"\x70"
 
 
 def validate_secret(secret_hex: str) -> bytes:
-    if not _SECRET_RE.match(secret_hex):
-        raise ValueError("secret must be 32 lowercase hex characters")
+    if not _SECRET_RE.fullmatch(secret_hex):
+        raise ValueError("Секрет должен состоять из 32 символов 0-9a-f.")
     return bytes.fromhex(secret_hex)
 
 
@@ -24,10 +24,10 @@ def validate_base_path(base_path: str) -> str:
     if base_path == "":
         return base_path
     if len(base_path) > MAX_BASE_PATH:
-        raise ValueError("base path is too long")
+        raise ValueError("base_path длиннее %d символов." % MAX_BASE_PATH)
     for segment in base_path.split("/"):
-        if not _SEGMENT_RE.match(segment):
-            raise ValueError("invalid base path segment")
+        if not _SEGMENT_RE.fullmatch(segment):
+            raise ValueError("Недопустимый base_path: сегменты [A-Za-z0-9][A-Za-z0-9_-]* через «/».")
     return base_path
 
 

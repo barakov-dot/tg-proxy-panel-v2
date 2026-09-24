@@ -10,7 +10,8 @@ Type=oneshot
 RemainAfterExit=true
 ExecStart=/usr/local/sbin/wppctl sync
 ExecReload=/usr/local/sbin/wppctl sync
-ExecStop=-/usr/sbin/nft delete table inet wpp
+# No ExecStop: stopping this unit must not reopen blocked slots. uninstall.sh
+# deletes the table explicitly.
 
 [Install]
 WantedBy=multi-user.target

@@ -133,11 +133,12 @@ def now() -> int:
 
 def connect(path: str, readonly: bool = False) -> sqlite3.Connection:
     if readonly:
-        conn = sqlite3.connect("file:%s?mode=ro" % path, uri=True, isolation_level=None, timeout=5)
+        conn = sqlite3.connect("file:%s?mode=ro" % path, uri=True, isolation_level=None, timeout=15)
     else:
-        conn = sqlite3.connect(path, isolation_level=None, timeout=5)
+        conn = sqlite3.connect(path, isolation_level=None, timeout=15)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA busy_timeout=5000")
+    # Writers may wait for a short wppctl call made inside another transaction.
+    conn.execute("PRAGMA busy_timeout=15000")
     conn.execute("PRAGMA foreign_keys=ON")
     if not readonly:
         conn.execute("PRAGMA journal_mode=WAL")
@@ -175,7 +176,12 @@ def transaction(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     except BaseException:
         conn.execute("ROLLBACK")
         raise
-    conn.execute("COMMIT")
+    try:
+        conn.execute("COMMIT")
+    except BaseException:
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
 
 
 def get_setting(conn: sqlite3.Connection, key: str) -> Any:

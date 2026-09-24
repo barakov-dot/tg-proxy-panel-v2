@@ -2,6 +2,10 @@
 {
 	email {$ACME_EMAIL}
 	admin off
+	# Request error entries carry the URI (bridge capability, panel path): drop them.
+	log default {
+		exclude http.log.error
+	}
 	servers {
 		protocols h1 h2
 		# read_body must stay well above the relay long_poll (25s).

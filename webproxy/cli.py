@@ -10,12 +10,18 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import secrets
 import sys
 from typing import List, Optional
 
 from . import config as config_module
 from . import db, links, pool, sizing, system
+
+
+_DOMAIN_RE = re.compile(r"[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?")
+_IPV4 = r"(?:(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1?[0-9]?[0-9])"
+_NAT_RE = re.compile(_IPV4 + ":" + _IPV4)
 
 
 def _write_json(path: str, value: object) -> None:
@@ -28,6 +34,10 @@ def cmd_init(args: argparse.Namespace) -> int:
         cfg = config_module.load(config_path)
         print("Конфигурация уже есть: %s" % config_path)
     else:
+        if not _DOMAIN_RE.fullmatch(args.domain) or "." not in args.domain:
+            raise ValueError("Домен должен быть в нижнем регистре ASCII (IDNA), например proxy.example.com.")
+        if args.nat_info and not _NAT_RE.fullmatch(args.nat_info):
+            raise ValueError("--nat-info: ожидается <локальный IPv4>:<внешний IPv4>.")
         links.validate_base_path(args.base_path)
         data = {
             "domain": args.domain,

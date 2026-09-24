@@ -119,7 +119,7 @@ def from_dict(data: Dict[str, Any]) -> Config:
     known = set(Paths.__dataclass_fields__)
     unknown = set(paths_data) - known
     if unknown:
-        raise ValueError("unknown paths: " + ", ".join(sorted(unknown)))
+        raise ValueError("Неизвестные пути в конфигурации: " + ", ".join(sorted(unknown)))
     paths = Paths(**paths_data).resolve()
     return Config(
         domain=str(data.get("domain", "")),

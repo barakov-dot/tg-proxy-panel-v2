@@ -54,6 +54,8 @@ class System:
     def __init__(self, cfg: config_module.Config):
         self.cfg = cfg
         self.paths = cfg.paths
+        # Incremented before every block/unblock attempt (see users._change).
+        self.firewall_calls = 0
 
     # --- privileged (wppctl) -------------------------------------------------
 
@@ -70,12 +72,14 @@ class System:
     def block(self, ports: Iterable[int]) -> None:
         ports = sorted(set(int(p) for p in ports))
         if ports:
-            self._ctl("block", *map(str, ports))
+            self.firewall_calls += 1
+            self._ctl("block", *map(str, ports), timeout=10)
 
     def unblock(self, ports: Iterable[int]) -> None:
         ports = sorted(set(int(p) for p in ports))
         if ports:
-            self._ctl("unblock", *map(str, ports))
+            self.firewall_calls += 1
+            self._ctl("unblock", *map(str, ports), timeout=10)
 
     def sync_firewall(self) -> None:
         self._ctl("sync")
@@ -181,9 +185,10 @@ class System:
     def qrencode(self, text: str, fmt: str = "PNG") -> bytes:
         if fmt not in ("PNG", "SVG"):
             raise ValueError("unsupported QR format")
-        argv = [self.paths.qrencode, "-t", fmt, "-o", "-", "-s", "8", "-m", "2", "--", text]
+        # The link goes through stdin: command lines are visible to every local user.
+        argv = [self.paths.qrencode, "-t", fmt, "-o", "-", "-s", "8", "-m", "2"]
         try:
-            proc = subprocess.run(argv, capture_output=True, timeout=10)
+            proc = subprocess.run(argv, input=text.encode("utf-8"), capture_output=True, timeout=10)
         except (OSError, subprocess.TimeoutExpired) as error:
             raise SystemError_("qrencode: %s" % type(error).__name__) from None
         if proc.returncode != 0:

@@ -116,4 +116,16 @@ sudo -u webproxy python3 tools/dev/wppdev.py qr 1
    выключенные остаются выключенными, relay и шарды **не** перезапускаются (`systemctl status wpp-relay`
    — время запуска не изменилось), подключённые клиенты не обрываются.
 
+9. Журналы без секретов (FINDINGS п. 28): после сценариев 1–8
+   ```bash
+   journalctl -u wpp-caddy -u wpp-relay -u 'wpp-mtproxy@*' --since today | grep -Ei 'bridge=|p-[0-9a-f]{32}|secret' | head
+   ```
+   — пусто. Затем `systemctl stop wpp-relay`, открыть `https://<домен>/?bridge=test` в браузере,
+   `systemctl start wpp-relay` и повторить grep — пусто.
+10. Сообщение `-check` без секретов: испортить копию профилей и проверить вывод:
+   ```bash
+   sudo -u webproxy sh -c 'cd /tmp && sed "s/\"secret\": \"/\"secret\": \"zz/" /etc/webproxy/profiles.json > /tmp/p.json && chmod 600 /tmp/p.json && /opt/webproxy/bin/tproxy-server -config /etc/webproxy/relay.json -profiles-file /tmp/p.json -check; rm -f /tmp/p.json'
+   ```
+   — сообщение называет профиль (`s000-00`), но не значение секрета.
+
 Удалить тестовых пользователей: `wppdev.py list`, затем `wppdev.py delete <id>`.

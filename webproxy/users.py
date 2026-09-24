@@ -11,8 +11,9 @@ Messages of ``UserError`` are shown to people as is (Russian).
 
 from __future__ import annotations
 
+import contextlib
 import sqlite3
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 from . import config as config_module
 from . import db, links, pool
@@ -26,6 +27,34 @@ RESETS = ("never", "monthly")
 
 class UserError(ValueError):
     pass
+
+
+@contextlib.contextmanager
+def _change(conn: sqlite3.Connection, system: Any) -> Iterator[None]:
+    """A transaction whose firewall calls are undone on failure.
+
+    wppctl calls happen before COMMIT. If anything fails after one of them
+    (a later wppctl call, COMMIT itself), the database rolls back and the
+    firewall is rebuilt from the committed state.
+    """
+    if conn.in_transaction:
+        yield
+        return
+    calls_before = _firewall_calls(system)
+    try:
+        with db.transaction(conn):
+            yield
+    except BaseException:
+        if _firewall_calls(system) != calls_before:
+            try:
+                system.sync_firewall()
+            except Exception:
+                pass
+        raise
+
+
+def _firewall_calls(system: Any) -> int:
+    return getattr(system, "firewall_calls", 0)
 
 
 def _user(conn: sqlite3.Connection, user_id: int) -> sqlite3.Row:
@@ -98,7 +127,7 @@ def create_user(conn: sqlite3.Connection, system: Any, *, name: str, created_by:
     if max_devices_value is not None and max_devices_value < 1:
         raise UserError("Лимит устройств должен быть не меньше 1.")
     timestamp = db.now()
-    with db.transaction(conn):
+    with _change(conn, system):
         if tg_id is not None and conn.execute("SELECT 1 FROM users WHERE tg_id = ?", (tg_id,)).fetchone():
             raise UserError("Пользователь с таким Telegram ID уже есть.")
         cursor = conn.execute(
@@ -118,7 +147,7 @@ def add_device(conn: sqlite3.Connection, system: Any, user_id: int, created_by: 
                name: Optional[str] = None) -> int:
     if created_by not in ("panel", "bot"):
         raise ValueError("created_by")
-    with db.transaction(conn):
+    with _change(conn, system):
         user = _user(conn, user_id)
         if created_by == "bot" and not user["enabled"]:
             raise UserError("Доступ отключён: новое устройство добавить нельзя.")
@@ -134,7 +163,7 @@ def add_device(conn: sqlite3.Connection, system: Any, user_id: int, created_by: 
 
 
 def delete_device(conn: sqlite3.Connection, system: Any, device_id: int, by: str = "panel") -> None:
-    with db.transaction(conn):
+    with _change(conn, system):
         device = _device(conn, device_id)
         pool.release_slot(conn, device["slot_id"])
         conn.execute("DELETE FROM devices WHERE id = ?", (device_id,))
@@ -144,7 +173,7 @@ def delete_device(conn: sqlite3.Connection, system: Any, device_id: int, by: str
 
 def rotate_device(conn: sqlite3.Connection, system: Any, device_id: int) -> None:
     """New link: the device moves to a clean slot, the old one becomes dirty."""
-    with db.transaction(conn):
+    with _change(conn, system):
         device = _device(conn, device_id)
         user = _user(conn, device["user_id"])
         slot = pool.take_free_slot(conn, device_id=device_id)
@@ -166,7 +195,7 @@ def disable_user(conn: sqlite3.Connection, system: Any, user_id: int, reason: st
     """Returns False if the user was already disabled."""
     if reason not in DISABLED_REASONS:
         raise ValueError("reason")
-    with db.transaction(conn):
+    with _change(conn, system):
         user = _user(conn, user_id)
         if not user["enabled"]:
             return False
@@ -178,7 +207,7 @@ def disable_user(conn: sqlite3.Connection, system: Any, user_id: int, reason: st
 
 def enable_user(conn: sqlite3.Connection, system: Any, user_id: int) -> bool:
     """Returns False if the user was already enabled."""
-    with db.transaction(conn):
+    with _change(conn, system):
         user = _user(conn, user_id)
         if user["enabled"]:
             return False
@@ -210,7 +239,7 @@ def _maybe_reenable(conn: sqlite3.Connection, system: Any, user_id: int, reason:
 
 def set_expiry(conn: sqlite3.Connection, system: Any, user_id: int, expires_at: Optional[int],
                enable_now: bool = True) -> None:
-    with db.transaction(conn):
+    with _change(conn, system):
         _user(conn, user_id)
         conn.execute("UPDATE users SET expires_at = ? WHERE id = ?", (expires_at, user_id))
         db.log_event(conn, "user_expiry_set", user_id, "expires_at=%s" % (expires_at or "never"))
@@ -222,7 +251,7 @@ def extend(conn: sqlite3.Connection, system: Any, user_id: int, days: int, enabl
     """Adds ``days`` from max(now, current expiry). Returns the new expiry."""
     if days <= 0:
         raise UserError("Число дней должно быть положительным.")
-    with db.transaction(conn):
+    with _change(conn, system):
         user = _user(conn, user_id)
         base = max(db.now(), user["expires_at"] or 0)
         expires_at = base + days * DAY
@@ -236,7 +265,7 @@ def set_traffic_limit(conn: sqlite3.Connection, system: Any, user_id: int, limit
         raise UserError("Неизвестный тип сброса трафика.")
     if limit_bytes is not None and limit_bytes <= 0:
         raise UserError("Лимит трафика должен быть положительным.")
-    with db.transaction(conn):
+    with _change(conn, system):
         _user(conn, user_id)
         conn.execute("UPDATE users SET traffic_limit_bytes = ?, traffic_reset = ? WHERE id = ?",
                      (limit_bytes, reset, user_id))
@@ -271,7 +300,7 @@ def update_profile(conn: sqlite3.Connection, user_id: int, *, name: Optional[str
 
 
 def delete_user(conn: sqlite3.Connection, system: Any, user_id: int) -> None:
-    with db.transaction(conn):
+    with _change(conn, system):
         _user(conn, user_id)
         ports = _device_ports(conn, user_id)
         for row in conn.execute("SELECT slot_id FROM devices WHERE user_id = ?", (user_id,)).fetchall():

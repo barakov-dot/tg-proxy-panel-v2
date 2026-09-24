@@ -143,7 +143,7 @@ install -o webproxy -g webproxy -m 0600 "$work/proxy-multi.conf" "$lib/mtproxy/p
 
 step "token.key и сайт-заглушка"
 if [[ ! -e "$etc/token.key" ]]; then
-	head -c 32 /dev/urandom > "$work/token.key"
+	(umask 077; head -c 32 /dev/urandom > "$work/token.key")
 	install -o webproxy -g webproxy -m 0600 "$work/token.key" "$etc/token.key"
 fi
 if [[ ! -e "$lib/site/index.html" ]]; then
@@ -187,7 +187,7 @@ step "Caddy"
 panel_path="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["panel_path"])' "$etc/config.json")"
 domain="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["domain"])' "$etc/config.json")"
 install -o webproxy -g webproxy -m 0600 "$src/deploy/Caddyfile" "$etc/Caddyfile"
-printf 'WPP_DOMAIN=%s\nWPP_PANEL_PATH=%s\nACME_EMAIL=%s\n' "$domain" "$panel_path" "$email" > "$work/caddy.env"
+(umask 077; printf 'WPP_DOMAIN=%s\nWPP_PANEL_PATH=%s\nACME_EMAIL=%s\n' "$domain" "$panel_path" "$email" > "$work/caddy.env")
 install -o webproxy -g webproxy -m 0600 "$work/caddy.env" "$etc/caddy.env"
 WPP_DOMAIN="$domain" WPP_PANEL_PATH="$panel_path" ACME_EMAIL="$email" \
 	"$bin/caddy" validate --config "$etc/Caddyfile" --adapter caddyfile >/dev/null

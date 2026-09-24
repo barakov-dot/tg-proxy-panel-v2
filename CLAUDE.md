@@ -105,18 +105,23 @@ PLAN.md и docs/.
 
 ## Текущее состояние
 
-- **Завершено:** подготовка и проверка допущений (docs/FINDINGS.md, tools/verify/). Код ещё не писался.
-- **Следующий шаг:** M1 — ядро (`db`, `links`, `pool`, `system`, `ctl`, `users`, шаблон шарда,
-  nft-таблица, тесты).
-- **Ключевые уточнения из FINDINGS для M1:** `nft-ss.sh`, `mtproxy-shard.sh`, `relay-check.sh` на VPS — PASS; health relay только через `/healthz`, `/readyz` не
-  вызывать; health шарда = unit active + `GET /stats` на `19000+N`; `wppctl` получает подкоманды
-  `counters` и `sync`; у каждого профиля свои `new_streams_per_minute`/`new_streams_burst`;
-  `profiles.json` с правами 0600 без `LoadCredential`; sizing учитывает `max_pending_items_global`;
-  шарды запускаются с `-M 0 -p <19000+N> --http-stats` (замер RSS: 8,2 МиБ против 15,1 МиБ у `-M 1`).
+- **Завершено:** M1 — ядро (тег `v0.1.0`): `config`, `db` (схема с `devices`, `pending_secret`,
+  `shards.active`), `links`, `sizing`, `system`, `pool` (apply с `-check`, проверкой здоровья и откатом),
+  `users` (пользователи и устройства), `ctl` (`wppctl`), `cli` (`wpp init`, `wpp status`); юниты relay,
+  шардов, firewall, Caddy; тестовый стенд `tools/dev/bringup.sh` + `tools/dev/wppdev.py`; приёмка
+  `tools/verify/m1-core.sh`; 142 unit-теста (Python 3.14 и 3.9.6).
+- **Ждёт проверки на VPS (M1):** `docs/TESTING.md`, раздел M1 (стенд 20 шардов, `m1-core.sh`, реальный
+  клиент Telegram, журналы без секретов). Результаты — в FINDINGS «Результаты на VPS».
+- **Следующий шаг:** M2 — трафик и воркер (`traffic.py`, `worker.py`, юниты worker/refresh, окно
+  обслуживания с параметром времени). Опираться на FINDINGS п. 5, 7.2 плана, п. 27–28.
+- **Важно для следующих этапов:** панель, бот и воркер вызывают `sudo wppctl` → в их юнитах нельзя
+  `NoNewPrivileges` (FINDINGS п. 23); операции с пользователями — только через `users.*`; изменения
+  пула — только через `pool.maintain`/`pool.apply`; `/readyz` не вызывать.
 - **Открытые вопросы:**
   - `nft-ss.sh` на Ubuntu 22.04 (nft 1.0.2) и Debian 12 (1.0.6) — в M5;
-  - поведение реального клиента при выключенном доступе (M1, `client-reconnect-watch.sh`);
-  - `reconnect_grace` = 60 с при `max_sessions = 1` — проверить с реальными клиентами в M1 (FINDINGS п. 4).
+  - поведение реального клиента при выключенном доступе и при `reconnect_grace = 60 с` — сценарии M1;
+  - кнопка «🗑 Удалить устройство» в боте добавлена по смыслу (замена потерянного устройства) — владелец
+    не возражал, но явно не подтверждал.
 - **Решено владельцем (2026-09-24):** одна ссылка = одно устройство (`max_sessions = 1` на профиль);
   у человека несколько устройств, лимит устройств на человека (по умолчанию 1); срок и трафик — на
   человека; устройства добавляют бот и панель. PLAN.md обновлён (таблица `devices`).

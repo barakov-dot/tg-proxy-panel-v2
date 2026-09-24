@@ -102,7 +102,7 @@ def cmd_qr(args):
         print("Устройство не найдено", file=sys.stderr)
         return 1
     link = users.device_link(cfg, row)["link"]
-    subprocess.run([cfg.paths.qrencode, "-t", "ANSIUTF8", "-m", "2", "--", link], check=False)
+    subprocess.run([cfg.paths.qrencode, "-t", "ANSIUTF8", "-m", "2"], input=link.encode("utf-8"), check=False)
     return 0
 
 

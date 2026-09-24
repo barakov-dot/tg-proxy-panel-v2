@@ -217,6 +217,13 @@ def _dump(value: Any) -> bytes:
     return (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
+def _sync_firewall(conn: sqlite3.Connection, system: Any) -> None:
+    """Rebuilds the nft table while holding the write lock, so no user operation
+    is between its own wppctl call and its COMMIT (ctl reads committed state)."""
+    with db.transaction(conn):
+        system.sync_firewall()
+
+
 def apply(conn: sqlite3.Connection, cfg: config_module.Config, system: Any,
           sizing: Dict[str, Any], restart_shards: Iterable[int] = (),
           new_shards: Sequence[int] = ()) -> None:
@@ -266,7 +273,7 @@ def apply(conn: sqlite3.Connection, cfg: config_module.Config, system: Any,
         for path, data in targets.items():
             system.write_file(path, data)
         if new_shards:
-            system.sync_firewall()
+            _sync_firewall(conn, system)
             for shard in new_shards:
                 system.enable_shard(shard)
         for shard in shards:
@@ -275,7 +282,11 @@ def apply(conn: sqlite3.Connection, cfg: config_module.Config, system: Any,
         if not system.wait_healthy(shards, relay=True):
             raise PoolError("Relay или шарды не поднялись после применения конфигурации.")
     except Exception as error:
-        restore()
+        # Best effort from here on: one failing step must not skip the rest.
+        try:
+            restore()
+        except Exception:
+            pass
         for shard in new_shards:
             try:
                 system.stop_shard(shard)
@@ -289,10 +300,13 @@ def apply(conn: sqlite3.Connection, cfg: config_module.Config, system: Any,
                 if shard not in new_shards:
                     system.restart_shard(shard)
             system.restart_relay()
-            if new_shards:
-                system.sync_firewall()
         except Exception:
             pass
+        if new_shards:
+            try:
+                _sync_firewall(conn, system)
+            except Exception:
+                pass
         if isinstance(error, PoolError):
             raise
         raise PoolError("Не удалось применить конфигурацию: %s" % error) from None
@@ -312,6 +326,9 @@ def maintain(conn: sqlite3.Connection, cfg: config_module.Config, system: Any,
     """
     with apply_lock(cfg):
         with db.transaction(conn):
+            # Leftovers of an apply interrupted by a crash: inactive shards were
+            # never started, so discard them and stage everything again.
+            abort_staged(conn)
             restart = stage_dirty(conn)
             current = counts(conn)
             free_after = current["free"] + current["dirty"]

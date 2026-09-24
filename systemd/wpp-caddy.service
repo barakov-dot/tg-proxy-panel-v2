@@ -12,7 +12,8 @@ Environment=XDG_DATA_HOME=/var/lib/webproxy/caddy
 Environment=XDG_CONFIG_HOME=/var/lib/webproxy/caddy
 # WPP_DOMAIN, WPP_PANEL_PATH, ACME_EMAIL.
 EnvironmentFile=/etc/webproxy/caddy.env
-ExecStart=/opt/webproxy/bin/caddy run --environ --config /etc/webproxy/Caddyfile --adapter caddyfile
+# No --environ: it would print WPP_PANEL_PATH to the journal.
+ExecStart=/opt/webproxy/bin/caddy run --config /etc/webproxy/Caddyfile --adapter caddyfile
 Restart=on-failure
 RestartSec=3s
 TimeoutStopSec=10s

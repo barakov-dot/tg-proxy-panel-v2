@@ -38,7 +38,7 @@ def pool_slots(users_target: int, devices_per_user: float = DEVICES_PER_USER) ->
 def compute(users_target: int, cpus: int, mem_bytes: int,
             profile_streams_per_minute: int = 300, profile_streams_burst: int = 64) -> Dict[str, Any]:
     if users_target <= 0:
-        raise ValueError("users_target must be positive")
+        raise ValueError("Ожидаемое число пользователей должно быть положительным.")
     warnings: List[str] = []
     slots = pool_slots(users_target)
     shards = slots // SHARD_SIZE

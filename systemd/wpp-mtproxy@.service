@@ -25,7 +25,6 @@ PrivateDevices=true
 PrivateTmp=true
 ProtectHome=true
 ProtectProc=invisible
-ProcSubset=pid
 ProtectSystem=strict
 ProtectClock=true
 ProtectControlGroups=true

@@ -28,6 +28,7 @@ class FakeSystem:
         self.healthy = True
         self.counter_values = {}
         self.enabled_shards = set()
+        self.firewall_calls = 0
 
     def _record(self, name, *args):
         self.calls.append((name,) + args)
@@ -41,12 +42,14 @@ class FakeSystem:
     def block(self, ports):
         ports = sorted(set(ports))
         if ports:
+            self.firewall_calls += 1
             self._record("block", tuple(ports))
             self.blocked.update(ports)
 
     def unblock(self, ports):
         ports = sorted(set(ports))
         if ports:
+            self.firewall_calls += 1
             self._record("unblock", tuple(ports))
             self.blocked.difference_update(ports)
 

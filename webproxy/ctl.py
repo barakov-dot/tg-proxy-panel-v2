@@ -181,7 +181,10 @@ def current_blocked():
 
 def kill(ports):
     for expression in kill_filters(ports):
-        run([tool("ss"), "-K", "-tn", "state", "established", expression], check=False)
+        proc = run([tool("ss"), "-K", "-tn", "state", "established", expression], check=False)
+        if proc.returncode != 0:
+            # Blocking still holds; only already established connections survive.
+            sys.stderr.write("wppctl: ss -K failed: %s\n" % proc.stderr.strip()[:200])
 
 
 def cmd_block(args):
@@ -223,7 +226,9 @@ def read_db(path=None):
     owner = os.lstat(path)
     if not stat.S_ISREG(owner.st_mode):
         raise CtlError("database is not a regular file")
-    if os.geteuid() != 0 or owner.st_uid == 0:
+    if os.geteuid() == 0 and owner.st_uid == 0:
+        raise CtlError("database must not be owned by root")
+    if os.geteuid() != 0:
         ports, blocked, shards = _query_db(path)
     else:
         read_fd, write_fd = os.pipe()
@@ -346,4 +351,7 @@ if __name__ == "__main__":
         main(sys.argv[1:])
     except CtlError as error:
         sys.stderr.write("wppctl: %s\n" % error)
+        sys.exit(1)
+    except (ValueError, OSError, subprocess.TimeoutExpired, sqlite3.Error) as error:
+        sys.stderr.write("wppctl: %s\n" % type(error).__name__)
         sys.exit(1)
