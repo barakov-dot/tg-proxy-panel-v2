@@ -39,7 +39,7 @@ MTProxy слушает `0.0.0.0`, а внешний доступ к 19000–2999
 даётся только клиенту `127.0.0.1` (`mtproto/mtproto-proxy.c:1394`). Порт слушает `0.0.0.0`, внешний
 доступ закрывает nft. Здоровье шарда проверяем через `GET http://127.0.0.1:<19000+N>/stats` (см. п. 2).
 
-**`ss -K`** — проверить на VPS (`tools/verify/nft-ss.sh`). Нужны ядро с `CONFIG_INET_DIAG_DESTROY=y`
+**`ss -K`** — подтверждено на VPS (`tools/verify/nft-ss.sh`, Ubuntu 24.04). Нужны ядро с `CONFIG_INET_DIAG_DESTROY=y`
 и `CAP_NET_ADMIN`, то есть вызов через `wppctl`. Убивать нужно обе стороны:
 `ss -K -tn state established '( sport = :P or dport = :P )'`.
 Когда relay теряет backend-сокет, `readLoop` завершается, поток закрывается и клиенту уходит
@@ -215,5 +215,7 @@ per-session (`max_pending_global ≥ max_pending_per_session` = 32 МиБ и т.
 | Скрипт | Среда | Итог |
 |---|---|---|
 | `relay-check.sh` | Ubuntu 24.04.4, ядро 6.8.0, Go 1.26.5 | **PASS**: все пункты 2, 3, 4, 6 (со стороны relay) подтверждены: граница 655/656 и 1000/1001, 1024 профиля за 0,05 с |
-| `mtproxy-shard.sh` | Ubuntu 24.04.4, без NAT | 1 FAIL: stats-порт без `--http-stats` (см. п. 1); скрипт исправлен, нужен повторный запуск. Остальное PASS |
-| `nft-ss.sh` | — | ещё не запускался (nft 1.0.9 на тестовом VPS; позже нужны также 1.0.2 на Ubuntu 22.04 и 1.0.6 на Debian 12) |
+| `mtproxy-shard.sh` | Ubuntu 24.04.4, без NAT | **PASS** (после добавления `--http-stats`): stats-порт слушает `127.0.0.1`, RSS `-M 1` 15,1 МиБ, `-M 0` 8,2 МиБ |
+| `nft-ss.sh` | Ubuntu 24.04.4, nft 1.0.9, ядро 6.8 (`CONFIG_INET_DIAG_DESTROY=y`) | **PASS**: плановый синтаксис `counter name … map @cnt` и запасной приняты; счётчики на 100 001/50 000 байт полезной нагрузки дали 100 477/50 424 (заголовки ≈0,5–1 %), соседний порт не затронут; reject мгновенный; `ss -K` рвёт только сокеты своего порта (`ConnectionAbortedError`); удаление отсутствующего элемента — код 1 `No such file or directory`; добавление счётчиков в живую таблицу работает |
+
+На Ubuntu 22.04 (nft 1.0.2) и Debian 12 (1.0.6) `nft-ss.sh` повторить в M5 (матрица установки).
