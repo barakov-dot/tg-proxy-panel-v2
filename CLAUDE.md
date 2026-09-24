@@ -63,7 +63,7 @@ PLAN.md и docs/.
 - Shell-скрипты: `#!/usr/bin/env bash`, рассчитаны на bash 5. Локально только `bash -n`.
 - `.gitattributes`: `* text=auto eol=lf` и явный `eol=lf` для `*.sh`, `*.py`, `*.service`, `*.timer`.
 - Исполняемые файлы (install.sh, update.sh, uninstall.sh, tools/verify/*.sh, ctl) — бит через
-  `git update-index --chmod=+x`.
+  `git update-index --chmod=+x`, и в рабочей копии тоже `chmod +x` — иначе `git add -A` сбросит бит.
 - Установка на сервере одной командой из README:
   `bash <(curl -fsSL https://raw.githubusercontent.com/barakov-dot/tg-proxy-panel-v2/<TAG>/install.sh)`.
   Адрес репозитория и тег задаются переменными в начале install.sh (`REPO_URL`, `REPO_REF`).
