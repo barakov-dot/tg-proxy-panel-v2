@@ -3,7 +3,7 @@
 #   - pinned official MTProxy builds from the checksum-verified archive;
 #   - one process accepts 16 -S secrets and 16 -H ports, 17 secrets abort;
 #   - run as an unprivileged user, -u is ignored (even a nonexistent user);
-#   - the stats port answers /stats on loopback;
+#   - with --http-stats the stats port answers /stats on loopback;
 #   - RSS of one shard with -M 1 and with -M 0 (idle), middle-end connectivity.
 # Everything lives in a temporary directory and is removed on exit.
 # Usage: sudo bash tools/verify/mtproxy-shard.sh [--install-deps]
@@ -135,7 +135,7 @@ start_shard() {
 		cd "$work"
 		# -u names a user that does not exist: it must be ignored when not root.
 		exec setpriv --reuid=nobody --regid=nogroup --clear-groups -- \
-			"$binary" -u wpp-verify-no-such-user -p "$stats" -H "$joined" \
+			"$binary" -u wpp-verify-no-such-user -p "$stats" --http-stats -H "$joined" \
 			"${args[@]}" "${nat_args[@]}" --aes-pwd "$work/proxy-secret" "$work/proxy-multi.conf" \
 			-M "$workers" -C 4096
 	) >"$work/$name.log" 2>&1 &
